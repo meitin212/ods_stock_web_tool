@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ODS 股務報表統計工具</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #637083;
+      --line: #d9e0eb;
+      --primary: #2457d6;
+      --primary-dark: #183fa0;
+      --danger: #b42318;
+      --warning: #a15c07;
+      --ok: #067647;
+      --soft-blue: #edf3ff;
+      --soft-red: #fff1f0;
+      --soft-green: #ecfdf3;
+      --shadow: 0 12px 30px rgba(22, 33, 54, 0.10);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background: radial-gradient(circle at top left, #e9f0ff 0, transparent 32rem), var(--bg);
+      line-height: 1.55;
+    }
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 32px auto 60px;
+    }
+    header {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 40px);
+      letter-spacing: -0.03em;
+    }
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      max-width: 840px;
+      font-size: 16px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+    @media (min-width: 920px) {
+      .grid-2 { grid-template-columns: 1.05fr 0.95fr; }
+    }
+    .card {
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(217,224,235,0.9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+    .card h2, .card h3 {
+      margin: 0 0 12px;
+      letter-spacing: -0.02em;
+    }
+    .card h2 { font-size: 22px; }
+    .card h3 { font-size: 18px; }
+    .dropzone {
+      border: 2px dashed #9db2d5;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, #ffffff, #f8fbff);
+      padding: 26px;
+      display: grid;
+      gap: 14px;
+      text-align: center;
+      transition: 0.18s ease;
+    }
+    .dropzone.dragover {
+      border-color: var(--primary);
+      background: var(--soft-blue);
+      transform: translateY(-1px);
+    }
+    .dropzone strong { font-size: 19px; }
+    .dropzone p { margin: 0; color: var(--muted); }
+    .file-name {
+      font-family: var(--mono);
+      color: var(--primary-dark);
+      word-break: break-all;
+      font-size: 13px;
+    }
+    input[type="file"] {
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: white;
+    }
+    button {
+      border: 0;
+      background: var(--primary);
+      color: white;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.16s ease;
+      font-family: inherit;
+    }
+    button:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .secondary { background: #344054; }
+    .secondary:hover:not(:disabled) { background: #1d2939; }
+    .ghost {
+      background: transparent;
+      color: var(--primary-dark);
+      border: 1px solid #b6c7ef;
+    }
+    .ghost:hover:not(:disabled) { background: var(--soft-blue); }
+    .note {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fbfcff;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .note.ok { color: var(--ok); background: var(--soft-green); border-color: #b7ebca; }
+    .note.warn { color: var(--warning); background: #fff7ed; border-color: #fed7aa; }
+    .note.danger { color: var(--danger); background: var(--soft-red); border-color: #fecdca; }
+    .progress {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e7edf7;
+      margin-top: 8px;
+    }
+    .progress > div {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), #6b9cff);
+      transition: width 0.15s ease;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (min-width: 640px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .stat {
+      background: #fbfcff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .stat span { display: block; color: var(--muted); font-size: 13px; }
+    .stat strong { display: block; margin-top: 4px; font-size: 24px; line-height: 1.15; }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+      max-height: 460px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf0f5;
+      vertical-align: top;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      z-index: 1;
+      font-weight: 800;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: #eef2ff;
+      color: #2d3282;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .pill.bad { background: #fff1f0; color: var(--danger); }
+    .pill.ok { background: var(--soft-green); color: var(--ok); }
+    details summary { cursor: pointer; font-weight: 800; }
+    code { font-family: var(--mono); background: #eef2f7; border-radius: 6px; padding: 2px 5px; }
+    .footer { margin-top: 22px; color: var(--muted); font-size: 13px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>ODS 股務報表統計工具</h1>
+      <p class="lead">將 LibreOffice Calc 的 <code>.ods</code> 報表拖進瀏覽器，工具會在本機端分析所有 sheet，依公司、sheet、登打日期統計「總股數」與「已繕打股戶數」，並可下載 Excel 統計結果。</p>
+    </header>
+
+    <section class="grid grid-2">
+      <div class="card">
+        <h2>1. 選擇 ODS 檔案</h2>
+        <div id="dropzone" class="dropzone">
+          <strong>拖曳 .ods 檔案到這裡</strong>
+          <p>或使用下方按鈕選擇檔案。檔案只會在您的瀏覽器中讀取，不會上傳到伺服器。</p>
+          <input id="fileInput" type="file" accept=".ods,.fods,.xlsx,.xls" />
+          <div id="fileName" class="file-name">尚未選擇檔案</div>
+        </div>
+        <div class="button-row" style="margin-top: 16px;">
+          <button id="analyzeBtn" disabled>開始分析</button>
+          <button id="resetBtn" class="ghost" disabled>清除結果</button>
+        </div>
+        <div id="statusBox" class="note" style="margin-top: 14px;">請先選擇一個 ODS 檔案。</div>
+        <div class="progress"><div id="progressBar"></div></div>
+      </div>
+
+      <div class="card">
+        <h2>2. 安全設計</h2>
+        <div class="note ok">本工具不寫回原始 ODS，也不覆蓋原檔。所有統計結果皆另行下載。</div>
+        <div class="note" style="margin-top: 10px;">有效報表 sheet 會優先依 <code>公司_頁次</code> 判斷，例如 <code>中鋼_1</code>、<code>中鋼_2</code>；但真正納入統計前，仍會檢查是否找得到 <code>流水號</code>、<code>戶號</code>、<code>股數</code>、<code>登打日期</code> 等欄位。</div>
+        <div class="note warn" style="margin-top: 10px;">目前版本以欄位名稱辨識右側登打區，不依賴公式結果。若表格欄位文字被改名，該 sheet 可能會被列入略過或異常清單。</div>
+      </div>
+    </section>
+
+    <section id="resultSection" class="card hidden" style="margin-top: 18px;">
+      <h2>3. 分析結果</h2>
+      <div id="stats" class="stats"></div>
+      <div class="button-row" style="margin-top: 16px;">
+        <button id="downloadXlsxBtn" disabled>下載 Excel 統計結果</button>
+        <button id="downloadCompanyCsvBtn" class="secondary" disabled>下載公司日期 CSV</button>
+        <button id="downloadErrorCsvBtn" class="secondary" disabled>下載異常清單 CSV</button>
+      </div>
+    </section>
+
+    <section id="previewSection" class="grid grid-2 hidden" style="margin-top: 18px;">
+      <div class="card">
+        <h3>依公司日期統計預覽</h3>
+        <div id="companyPreview" class="table-wrap"></div>
+      </div>
+      <div class="card">
+        <h3>異常清單預覽</h3>
+        <div id="errorPreview" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section id="detailSection" class="card hidden" style="margin-top: 18px;">
+      <details open>
+        <summary>略過與處理狀態</summary>
+        <div id="skipPreview" class="table-wrap" style="margin-top: 12px;"></div>
+      </details>
+    </section>
+
+    <div class="footer">版本：0.1.0-MVP。建議部署於 GitHub Pages。若報表含敏感資料，建議將 <code>xlsx.full.min.js</code> 放入 <code>vendor/</code> 目錄，避免從 CDN 載入函式庫。</div>
+  </div>
+
+  <script src="./vendor/xlsx.full.min.js"></script>
+  <script>
+    if (!window.XLSX) {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\\/script>');
+    }
+  </script>
+
+  <script>
+    const REQUIRED_LABELS = ["流水號", "戶號", "股數", "登打日期"];
+    const OPTIONAL_LABELS = ["總股數", "已繕打股戶數", "總戶數"];
+    const MAX_PREVIEW_ROWS = 80;
+
+    const els = {
+      fileInput: document.getElementById("fileInput"),
+      fileName: document.getElementById("fileName"),
+      dropzone: document.getElementById("dropzone"),
+      analyzeBtn: document.getElementById("analyzeBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      statusBox: document.getElementById("statusBox"),
+      progressBar: document.getElementById("progressBar"),
+      resultSection: document.getElementById("resultSection"),
+      previewSection: document.getElementById("previewSection"),
+      detailSection: document.getElementById("detailSection"),
+      stats: document.getElementById("stats"),
+      companyPreview: document.getElementById("companyPreview"),
+      errorPreview: document.getElementById("errorPreview"),
+      skipPreview: document.getElementById("skipPreview"),
+      downloadXlsxBtn: document.getElementById("downloadXlsxBtn"),
+      downloadCompanyCsvBtn: document.getElementById("downloadCompanyCsvBtn"),
+      downloadErrorCsvBtn: document.getElementById("downloadErrorCsvBtn"),
+    };
+
+    let selectedFile = null;
+    let latestResult = null;
+
+    function setStatus(message, type = "") {
+      els.statusBox.className = `note ${type}`.trim();
+      els.statusBox.textContent = message;
+    }
+
+    function setProgress(done, total) {
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      els.progressBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    }
+
+    function normalizeLabel(value) {
+      return String(value ?? "")
+        .replace(/[\u00A0\u3000]/g, " ")
+        .replace(/\s+/g, "")
+        .trim();
+    }
+
+    function cleanText(value) {
+      return String(value ?? "")
+        .replace(/[\u00A0\u3000]/g, " ")
+        .trim();
+    }
+
+    function isBlank(value) {
+      return cleanText(value) === "";
+    }
+
+    function parseNumber(value) {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      const text = cleanText(value);
+      if (!text) return null;
+      const cleaned = text
+        .replace(/[，,]/g, "")
+        .replace(/\s+/g, "")
+        .replace(/股$/g, "")
+        .replace(/件$/g, "");
+      if (!cleaned) return null;
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function formatInteger(n) {
+      if (n === null || n === undefined || Number.isNaN(n)) return "";
+      return Math.round(n).toLocaleString("zh-TW");
+    }
+
+    function normalizeDate(value) {
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const y = value.getFullYear();
+        const m = String(value.getMonth() + 1).padStart(2, "0");
+        const d = String(value.getDate()).padStart(2, "0");
+        return { key: `${y}${m}${d}`, display: `${y}${m}${d}`, status: "ok", raw: value.toISOString() };
+      }
+
+      if (typeof value === "number" && Number.isFinite(value)) {
+        const rounded = String(Math.round(value));
+        if (/^\d{8}$/.test(rounded)) return { key: rounded, display: rounded, status: "ok", raw: String(value) };
+        if (/^\d{7}$/.test(rounded)) {
+          const rocYear = Number(rounded.slice(0, 3));
+          const y = rocYear + 1911;
+          const m = rounded.slice(3, 5);
+          const d = rounded.slice(5, 7);
+          return { key: `${y}${m}${d}`, display: `${y}${m}${d}`, status: "ok", raw: String(value) };
+        }
+      }
+
+      const text = cleanText(value);
+      if (!text) return { key: "未填日期", display: "未填日期", status: "missing", raw: "" };
+
+      if (/^\d+(\.0+)?$/.test(text)) {
+        const n = String(Math.round(Number(text)));
+        if (/^\d{8}$/.test(n)) return { key: n, display: n, status: "ok", raw: text };
+        if (/^\d{7}$/.test(n)) {
+          const rocYear = Number(n.slice(0, 3));
+          const y = rocYear + 1911;
+          const m = n.slice(3, 5);
+          const d = n.slice(5, 7);
+          return { key: `${y}${m}${d}`, display: `${y}${m}${d}`, status: "ok", raw: text };
+        }
+      }
+
+      const digits = text.replace(/\D/g, "");
+      if (/^\d{8}$/.test(digits)) return { key: digits, display: digits, status: "ok", raw: text };
+      if (/^\d{7}$/.test(digits)) {
+        const rocYear = Number(digits.slice(0, 3));
+        const y = rocYear + 1911;
+        const m = digits.slice(3, 5);
+        const d = digits.slice(5, 7);
+        return { key: `${y}${m}${d}`, display: `${y}${m}${d}`, status: "ok", raw: text };
+      }
+
+      return { key: "日期格式異常", display: "日期格式異常", status: "invalid", raw: text };
+    }
+
+    function splitSheetName(sheetName) {
+      const m = String(sheetName).match(/^(.+)_([0-9]+)$/);
+      if (m) return { company: m[1], page: Number(m[2]), matched: true };
+      return { company: String(sheetName), page: "", matched: false };
+    }
+
+    function findHeader(rows) {
+      const scanRows = Math.min(rows.length, 120);
+      for (let r = 0; r < scanRows; r++) {
+        const labels = (rows[r] || []).map(normalizeLabel);
+        const serialCandidates = [];
+        for (let c = 0; c < labels.length; c++) {
+          if (labels[c] === "流水號") serialCandidates.push(c);
+        }
+        for (const serialCol of serialCandidates) {
+          const map = { 流水號: serialCol };
+          const endCol = Math.min(labels.length, serialCol + 12);
+          for (let c = serialCol; c < endCol; c++) {
+            const label = labels[c];
+            if ([...REQUIRED_LABELS, ...OPTIONAL_LABELS].includes(label) && map[label] === undefined) {
+              map[label] = c;
+            }
+          }
+          const hasRequired = REQUIRED_LABELS.every(label => map[label] !== undefined);
+          if (hasRequired) return { rowIndex: r, columns: map };
+        }
+      }
+      return null;
+    }
+
+    function firstNumericBelow(rows, startRow, col, limit = 8) {
+      if (col === undefined || col === null) return null;
+      for (let r = startRow + 1; r < Math.min(rows.length, startRow + 1 + limit); r++) {
+        const n = parseNumber(rows[r]?.[col]);
+        if (n !== null) return n;
+      }
+      return null;
+    }
+
+    function addToMap(map, key, payload) {
+      if (!map.has(key)) {
+        map.set(key, { ...payload, totalShares: 0, holderCount: 0, sheets: new Set() });
+      }
+      return map.get(key);
+    }
+
+    function rowsToSheetRows(rows) {
+      return rows.map(row => ({ ...row }));
+    }
+
+    function analyzeSheet(sheetName, worksheet) {
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", raw: false });
+      const header = findHeader(rows);
+      const nameInfo = splitSheetName(sheetName);
+
+      if (!header) {
+        return {
+          skipped: {
+            Sheet名稱: sheetName,
+            狀態: "略過",
+            原因: "找不到右側登打區欄位：流水號、戶號、股數、登打日期",
+          },
+        };
+      }
+
+      const cols = header.columns;
+      const dataRows = rows.slice(header.rowIndex + 1);
+      const dateMap = new Map();
+      const detailErrors = [];
+      const validDetails = [];
+      let invalidDateCount = 0;
+      let missingDateCount = 0;
+
+      for (let offset = 0; offset < dataRows.length; offset++) {
+        const row = dataRows[offset] || [];
+        const realRowNumber = header.rowIndex + 2 + offset;
+        const serial = cleanText(row[cols["流水號"]]);
+        const account = cleanText(row[cols["戶號"]]);
+        const rawShares = row[cols["股數"]];
+        const rawDate = row[cols["登打日期"]];
+        const shares = parseNumber(rawShares);
+        const hasAny = !isBlank(serial) || !isBlank(account) || !isBlank(rawShares) || !isBlank(rawDate);
+        if (!hasAny) continue;
+
+        if (isBlank(account) && shares === null) continue;
+
+        if (isBlank(account) && shares !== null) {
+          detailErrors.push({
+            公司: nameInfo.company,
+            Sheet名稱: sheetName,
+            頁次: nameInfo.page,
+            列號: realRowNumber,
+            流水號: serial,
+            戶號: account,
+            股數: rawShares,
+            登打日期: rawDate,
+            問題: "有股數但戶號空白",
+          });
+          continue;
+        }
+
+        if (!isBlank(account) && shares === null) {
+          detailErrors.push({
+            公司: nameInfo.company,
+            Sheet名稱: sheetName,
+            頁次: nameInfo.page,
+            列號: realRowNumber,
+            流水號: serial,
+            戶號: account,
+            股數: rawShares,
+            登打日期: rawDate,
+            問題: "有戶號但股數不是有效數字",
+          });
+          continue;
+        }
+
+        const dateInfo = normalizeDate(rawDate);
+        if (dateInfo.status === "missing") missingDateCount++;
+        if (dateInfo.status === "invalid") {
+          invalidDateCount++;
+          detailErrors.push({
+            公司: nameInfo.company,
+            Sheet名稱: sheetName,
+            頁次: nameInfo.page,
+            列號: realRowNumber,
+            流水號: serial,
+            戶號: account,
+            股數: shares,
+            登打日期: dateInfo.raw,
+            問題: "日期格式異常",
+          });
+        }
+
+        const group = addToMap(dateMap, dateInfo.key, {
+          company: nameInfo.company,
+          sheetName,
+          page: nameInfo.page,
+          dateDisplay: dateInfo.display,
+        });
+        group.totalShares += shares;
+        group.holderCount += 1;
+        group.sheets.add(sheetName);
+
+        validDetails.push({ serial, account, shares, dateKey: dateInfo.key, rawDate: dateInfo.raw });
+      }
+
+      if (!nameInfo.matched) {
+        detailErrors.push({
+          公司: nameInfo.company,
+          Sheet名稱: sheetName,
+          頁次: nameInfo.page,
+          列號: "",
+          流水號: "",
+          戶號: "",
+          股數: "",
+          登打日期: "",
+          問題: "Sheet名稱不符合「公司_頁次」格式，但因欄位結構有效，仍納入統計",
+        });
+      }
+
+      const computedShares = validDetails.reduce((sum, item) => sum + item.shares, 0);
+      const computedCount = validDetails.length;
+      const reportTotalShares = firstNumericBelow(rows, header.rowIndex, cols["總股數"], 10);
+      const reportTypedCount = firstNumericBelow(rows, header.rowIndex, cols["已繕打股戶數"], 10);
+      const totalHolders = firstNumericBelow(rows, header.rowIndex, cols["總戶數"], 10);
+
+      const sheetDateRows = Array.from(dateMap.values()).map(item => ({
+        公司: item.company,
+        Sheet名稱: item.sheetName,
+        頁次: item.page,
+        登打日期: item.dateDisplay,
+        總股數: Math.round(item.totalShares),
+        已繕打股戶數: item.holderCount,
+      })).sort(compareDateSummaryRows);
+
+      sheetDateRows.push({
+        公司: nameInfo.company,
+        Sheet名稱: sheetName,
+        頁次: nameInfo.page,
+        登打日期: "TOTAL",
+        總股數: Math.round(computedShares),
+        已繕打股戶數: computedCount,
+      });
+
+      const diffShares = reportTotalShares === null ? "" : Math.round(computedShares - reportTotalShares);
+      const diffCount = reportTypedCount === null ? "" : computedCount - Math.round(reportTypedCount);
+
+      return {
+        sheetDateRows,
+        sheetSummary: {
+          公司: nameInfo.company,
+          Sheet名稱: sheetName,
+          頁次: nameInfo.page,
+          有效明細筆數: computedCount,
+          Python重算總股數: Math.round(computedShares),
+          報表顯示總股數: reportTotalShares === null ? "" : Math.round(reportTotalShares),
+          總股數差異: diffShares,
+          報表顯示已繕打股戶數: reportTypedCount === null ? "" : Math.round(reportTypedCount),
+          已繕打股戶數差異: diffCount,
+          報表顯示總戶數: totalHolders === null ? "" : Math.round(totalHolders),
+          未填日期筆數: missingDateCount,
+          日期格式異常筆數: invalidDateCount,
+          是否達2000筆: computedCount >= 2000 ? "是" : "否",
+          狀態: diffShares === 0 && diffCount === 0 ? "重算與報表顯示一致" : "請檢查差異或公式狀態",
+        },
+        detailErrors,
+      };
+    }
+
+    function compareDateSummaryRows(a, b) {
+      const c = String(a.公司).localeCompare(String(b.公司), "zh-Hant-TW");
+      if (c) return c;
+      const p = Number(a.頁次 || 0) - Number(b.頁次 || 0);
+      if (p) return p;
+      return String(a.登打日期).localeCompare(String(b.登打日期), "zh-Hant-TW");
+    }
+
+    async function analyzeWorkbook(file) {
+      if (!window.XLSX) throw new Error("找不到 SheetJS / XLSX 函式庫。請確認網路連線或將 vendor/xlsx.full.min.js 放入專案。 ");
+
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: false, raw: false });
+      const sheetNames = workbook.SheetNames || [];
+
+      const result = {
+        sourceFile: file.name,
+        analyzedAt: new Date(),
+        workbookSheetCount: sheetNames.length,
+        validSheetCount: 0,
+        skippedSheetCount: 0,
+        failedSheetCount: 0,
+        companyDateRows: [],
+        sheetDateRows: [],
+        sheetSummaryRows: [],
+        errorRows: [],
+        skippedRows: [],
+      };
+
+      const companyDateMap = new Map();
+
+      for (let i = 0; i < sheetNames.length; i++) {
+        const sheetName = sheetNames[i];
+        setStatus(`正在處理：${sheetName}（${i + 1} / ${sheetNames.length}）`);
+        setProgress(i, sheetNames.length);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        try {
+          const sheetResult = analyzeSheet(sheetName, workbook.Sheets[sheetName]);
+          if (sheetResult.skipped) {
+            result.skippedSheetCount++;
+            result.skippedRows.push(sheetResult.skipped);
+            continue;
+          }
+
+          result.validSheetCount++;
+          result.sheetDateRows.push(...sheetResult.sheetDateRows);
+          result.sheetSummaryRows.push(sheetResult.sheetSummary);
+          result.errorRows.push(...sheetResult.detailErrors);
+
+          const sheetDateRowsForCompany = sheetResult.sheetDateRows.filter(row => row.登打日期 !== "TOTAL");
+          for (const row of sheetDateRowsForCompany) {
+            const key = `${row.公司}||${row.登打日期}`;
+            if (!companyDateMap.has(key)) {
+              companyDateMap.set(key, {
+                公司: row.公司,
+                登打日期: row.登打日期,
+                總股數: 0,
+                已繕打股戶數: 0,
+                涉及Sheet: new Set(),
+              });
+            }
+            const target = companyDateMap.get(key);
+            target.總股數 += Number(row.總股數 || 0);
+            target.已繕打股戶數 += Number(row.已繕打股戶數 || 0);
+            target.涉及Sheet.add(row.Sheet名稱);
+          }
+        } catch (err) {
+          result.failedSheetCount++;
+          result.skippedRows.push({
+            Sheet名稱: sheetName,
+            狀態: "處理失敗",
+            原因: err?.message || String(err),
+          });
+        }
+      }
+
+      result.companyDateRows = Array.from(companyDateMap.values()).map(row => ({
+        公司: row.公司,
+        登打日期: row.登打日期,
+        總股數: Math.round(row.總股數),
+        已繕打股戶數: row.已繕打股戶數,
+        涉及Sheet: Array.from(row.涉及Sheet).sort().join("、"),
+      })).sort((a, b) => {
+        const c = String(a.公司).localeCompare(String(b.公司), "zh-Hant-TW");
+        if (c) return c;
+        return String(a.登打日期).localeCompare(String(b.登打日期), "zh-Hant-TW");
+      });
+
+      const companyTotals = new Map();
+      for (const row of result.companyDateRows) {
+        if (!companyTotals.has(row.公司)) companyTotals.set(row.公司, { 公司: row.公司, 總股數: 0, 已繕打股戶數: 0, sheets: new Set() });
+        const target = companyTotals.get(row.公司);
+        target.總股數 += Number(row.總股數 || 0);
+        target.已繕打股戶數 += Number(row.已繕打股戶數 || 0);
+        for (const s of String(row.涉及Sheet || "").split("、")) if (s) target.sheets.add(s);
+      }
+      for (const total of companyTotals.values()) {
+        result.companyDateRows.push({
+          公司: total.公司,
+          登打日期: "公司TOTAL",
+          總股數: Math.round(total.總股數),
+          已繕打股戶數: total.已繕打股戶數,
+          涉及Sheet: Array.from(total.sheets).sort().join("、"),
+        });
+      }
+
+      setProgress(sheetNames.length, sheetNames.length);
+      return result;
+    }
+
+    function buildOverviewRows(result) {
+      const totalShares = result.sheetSummaryRows.reduce((sum, row) => sum + Number(row.Python重算總股數 || 0), 0);
+      const totalCount = result.sheetSummaryRows.reduce((sum, row) => sum + Number(row.有效明細筆數 || 0), 0);
+      const missingDates = result.sheetSummaryRows.reduce((sum, row) => sum + Number(row.未填日期筆數 || 0), 0);
+      const invalidDates = result.sheetSummaryRows.reduce((sum, row) => sum + Number(row.日期格式異常筆數 || 0), 0);
+      return [
+        { 項目: "來源檔名", 數值: result.sourceFile },
+        { 項目: "分析時間", 數值: result.analyzedAt.toLocaleString("zh-TW") },
+        { 項目: "工作簿總Sheet數", 數值: result.workbookSheetCount },
+        { 項目: "有效報表Sheet數", 數值: result.validSheetCount },
+        { 項目: "略過Sheet數", 數值: result.skippedSheetCount },
+        { 項目: "處理失敗Sheet數", 數值: result.failedSheetCount },
+        { 項目: "總股數_重算", 數值: Math.round(totalShares) },
+        { 項目: "已繕打股戶數_重算", 數值: totalCount },
+        { 項目: "未填日期筆數", 數值: missingDates },
+        { 項目: "日期格式異常筆數", 數值: invalidDates },
+      ];
+    }
+
+    function renderStats(result) {
+      const overview = buildOverviewRows(result);
+      const lookup = Object.fromEntries(overview.map(row => [row.項目, row.數值]));
+      const stats = [
+        ["工作簿總Sheet數", lookup["工作簿總Sheet數"]],
+        ["有效報表Sheet數", lookup["有效報表Sheet數"]],
+        ["總股數_重算", formatInteger(Number(lookup["總股數_重算"]))],
+        ["已繕打股戶數_重算", formatInteger(Number(lookup["已繕打股戶數_重算"]))],
+        ["未填日期筆數", formatInteger(Number(lookup["未填日期筆數"]))],
+        ["日期格式異常筆數", formatInteger(Number(lookup["日期格式異常筆數"]))],
+        ["略過Sheet數", lookup["略過Sheet數"]],
+        ["處理失敗Sheet數", lookup["處理失敗Sheet數"]],
+      ];
+      els.stats.innerHTML = stats.map(([label, value]) => `<div class="stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function renderTable(container, rows, emptyText = "沒有資料") {
+      if (!rows || rows.length === 0) {
+        container.innerHTML = `<div class="note">${escapeHtml(emptyText)}</div>`;
+        return;
+      }
+      const previewRows = rows.slice(0, MAX_PREVIEW_ROWS);
+      const columns = Array.from(new Set(previewRows.flatMap(row => Object.keys(row))));
+      const thead = `<thead><tr>${columns.map(col => `<th>${escapeHtml(col)}</th>`).join("")}</tr></thead>`;
+      const tbody = `<tbody>${previewRows.map(row => `<tr>${columns.map(col => `<td>${escapeHtml(row[col])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+      const more = rows.length > MAX_PREVIEW_ROWS ? `<div class="note" style="border-radius:0;border-left:0;border-right:0;border-bottom:0;">僅預覽前 ${MAX_PREVIEW_ROWS} 筆，完整資料請下載 Excel。</div>` : "";
+      container.innerHTML = `<table>${thead}${tbody}</table>${more}`;
+    }
+
+    function renderResult(result) {
+      renderStats(result);
+      renderTable(els.companyPreview, result.companyDateRows, "沒有公司日期統計資料");
+      renderTable(els.errorPreview, result.errorRows, "沒有異常資料");
+      renderTable(els.skipPreview, result.skippedRows, "沒有略過或失敗的 sheet");
+      els.resultSection.classList.remove("hidden");
+      els.previewSection.classList.remove("hidden");
+      els.detailSection.classList.remove("hidden");
+      els.downloadXlsxBtn.disabled = false;
+      els.downloadCompanyCsvBtn.disabled = false;
+      els.downloadErrorCsvBtn.disabled = false;
+    }
+
+    function safeFileStem(name) {
+      return String(name || "ods_report")
+        .replace(/\.[^.]+$/g, "")
+        .replace(/[\\/:*?"<>|]/g, "_");
+    }
+
+    function timestamp() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, "0");
+      return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+    }
+
+    function downloadXlsx(result) {
+      const wb = XLSX.utils.book_new();
+      const sheets = [
+        ["總覽", buildOverviewRows(result)],
+        ["依公司日期統計", result.companyDateRows],
+        ["依Sheet日期統計", result.sheetDateRows],
+        ["Sheet總表", result.sheetSummaryRows],
+        ["異常清單", result.errorRows],
+        ["略過清單", result.skippedRows],
+      ];
+      for (const [name, rows] of sheets) {
+        const ws = XLSX.utils.json_to_sheet(rows.length ? rowsToSheetRows(rows) : [{ 訊息: "沒有資料" }]);
+        XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+      }
+      XLSX.writeFile(wb, `${safeFileStem(result.sourceFile)}_統計結果_${timestamp()}.xlsx`);
+    }
+
+    function downloadCsv(rows, filename) {
+      const ws = XLSX.utils.json_to_sheet(rows.length ? rowsToSheetRows(rows) : [{ 訊息: "沒有資料" }]);
+      const csv = XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function resetAll() {
+      selectedFile = null;
+      latestResult = null;
+      els.fileInput.value = "";
+      els.fileName.textContent = "尚未選擇檔案";
+      els.analyzeBtn.disabled = true;
+      els.resetBtn.disabled = true;
+      els.downloadXlsxBtn.disabled = true;
+      els.downloadCompanyCsvBtn.disabled = true;
+      els.downloadErrorCsvBtn.disabled = true;
+      els.resultSection.classList.add("hidden");
+      els.previewSection.classList.add("hidden");
+      els.detailSection.classList.add("hidden");
+      els.stats.innerHTML = "";
+      els.companyPreview.innerHTML = "";
+      els.errorPreview.innerHTML = "";
+      els.skipPreview.innerHTML = "";
+      setProgress(0, 100);
+      setStatus("請先選擇一個 ODS 檔案。");
+    }
+
+    function setFile(file) {
+      selectedFile = file;
+      latestResult = null;
+      els.fileName.textContent = file ? `${file.name}（${(file.size / 1024 / 1024).toFixed(2)} MB）` : "尚未選擇檔案";
+      els.analyzeBtn.disabled = !file;
+      els.resetBtn.disabled = !file;
+      els.resultSection.classList.add("hidden");
+      els.previewSection.classList.add("hidden");
+      els.detailSection.classList.add("hidden");
+      setProgress(0, 100);
+      setStatus(file ? "檔案已選擇，請按「開始分析」。" : "請先選擇一個 ODS 檔案。", file ? "ok" : "");
+    }
+
+    els.fileInput.addEventListener("change", event => {
+      const file = event.target.files?.[0];
+      if (file) setFile(file);
+    });
+
+    ["dragenter", "dragover"].forEach(type => {
+      els.dropzone.addEventListener(type, event => {
+        event.preventDefault();
+        els.dropzone.classList.add("dragover");
+      });
+    });
+    ["dragleave", "drop"].forEach(type => {
+      els.dropzone.addEventListener(type, event => {
+        event.preventDefault();
+        els.dropzone.classList.remove("dragover");
+      });
+    });
+    els.dropzone.addEventListener("drop", event => {
+      const file = event.dataTransfer.files?.[0];
+      if (file) setFile(file);
+    });
+
+    els.analyzeBtn.addEventListener("click", async () => {
+      if (!selectedFile) return;
+      try {
+        els.analyzeBtn.disabled = true;
+        els.downloadXlsxBtn.disabled = true;
+        els.downloadCompanyCsvBtn.disabled = true;
+        els.downloadErrorCsvBtn.disabled = true;
+        setStatus("開始讀取檔案……");
+        setProgress(0, 100);
+        latestResult = await analyzeWorkbook(selectedFile);
+        renderResult(latestResult);
+        const missing = latestResult.sheetSummaryRows.reduce((sum, row) => sum + Number(row.未填日期筆數 || 0), 0);
+        const invalid = latestResult.sheetSummaryRows.reduce((sum, row) => sum + Number(row.日期格式異常筆數 || 0), 0);
+        const type = missing || invalid || latestResult.failedSheetCount ? "warn" : "ok";
+        setStatus(`分析完成：有效報表 ${latestResult.validSheetCount} 張，略過 ${latestResult.skippedSheetCount} 張，未填日期 ${missing} 筆，日期格式異常 ${invalid} 筆。`, type);
+      } catch (err) {
+        console.error(err);
+        setStatus(`分析失敗：${err?.message || String(err)}`, "danger");
+      } finally {
+        els.analyzeBtn.disabled = false;
+      }
+    });
+
+    els.resetBtn.addEventListener("click", resetAll);
+    els.downloadXlsxBtn.addEventListener("click", () => latestResult && downloadXlsx(latestResult));
+    els.downloadCompanyCsvBtn.addEventListener("click", () => latestResult && downloadCsv(latestResult.companyDateRows, `${safeFileStem(latestResult.sourceFile)}_依公司日期統計_${timestamp()}.csv`));
+    els.downloadErrorCsvBtn.addEventListener("click", () => latestResult && downloadCsv(latestResult.errorRows, `${safeFileStem(latestResult.sourceFile)}_異常清單_${timestamp()}.csv`));
+  </script>
+</body>
+</html>
